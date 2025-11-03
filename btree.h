@@ -1,6 +1,8 @@
 #ifndef BTree_H
 #define BTree_H
 #include <iostream>
+#include <vector>
+#include <string>
 #include "node.h"
 
 using namespace std;
@@ -16,7 +18,7 @@ class BTree {
   bool searchHelper(Node<TK>* node, TK key);
   void insertNonFull(Node<TK>* node, TK key);
   void splitChild(Node<TK>* parent, int index);
-  void removeHelper(Node<TK>* node, TK key);
+  bool removeHelper(Node<TK>* node, TK key);
   TK getPredecessor(Node<TK>* node, int idx);
   TK getSuccessor(Node<TK>* node, int idx);
   void fill(Node<TK>* node, int idx);
@@ -165,65 +167,68 @@ void BTree<TK>::splitChild(Node<TK>* parent, int index) {
 template <typename TK>
 void BTree<TK>::remove(TK key) {
   if (root == nullptr) return;
-  
-  removeHelper(root, key);
-  
-  if (root->count == 0) {
-    Node<TK>* oldRoot = root;
-    if (root->leaf) {
-      root = nullptr;
-    } else {
-      root = root->children[0];
+
+  bool removed = removeHelper(root, key);
+
+  if (removed) {
+    if (root->count == 0) {
+      Node<TK>* oldRoot = root;
+      if (root->leaf) {
+        root = nullptr;
+      } else {
+        root = root->children[0];
+      }
+      delete oldRoot;
     }
-    delete oldRoot;
+    n--;
   }
-  n--;
 }
 
 template <typename TK>
-void BTree<TK>::removeHelper(Node<TK>* node, TK key) {
+bool BTree<TK>::removeHelper(Node<TK>* node, TK key) {
   int idx = 0;
   while (idx < node->count && node->keys[idx] < key) {
     idx++;
   }
-  
+
   if (idx < node->count && node->keys[idx] == key) {
     if (node->leaf) {
       for (int i = idx + 1; i < node->count; i++) {
         node->keys[i - 1] = node->keys[i];
       }
       node->count--;
+      return true;
     } else {
       int minKeys = (M - 1) / 2;
       if (node->children[idx]->count > minKeys) {
         TK pred = getPredecessor(node, idx);
         node->keys[idx] = pred;
-        removeHelper(node->children[idx], pred);
+        return removeHelper(node->children[idx], pred);
       } else if (node->children[idx + 1]->count > minKeys) {
         TK succ = getSuccessor(node, idx);
         node->keys[idx] = succ;
-        removeHelper(node->children[idx + 1], succ);
+        return removeHelper(node->children[idx + 1], succ);
       } else {
         merge(node, idx);
-        removeHelper(node->children[idx], key);
+        return removeHelper(node->children[idx], key);
       }
     }
   } else {
     if (node->leaf) {
-      return;
+      return false;
     }
-    
+
     bool isInSubtree = (idx == node->count);
     int minKeys = (M - 1) / 2;
-    
+
     if (node->children[idx]->count <= minKeys) {
       fill(node, idx);
     }
-    
+
     if (isInSubtree && idx > node->count) {
-      removeHelper(node->children[idx - 1], key);
+      return removeHelper(node->children[idx - 1], key);
     } else {
-      removeHelper(node->children[idx], key);
+      return removeHelper(node->children[idx], key);
     }
   }
 }
